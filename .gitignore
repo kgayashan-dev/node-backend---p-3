@@ -1,0 +1,23 @@
+# Node modules
+node_modules/
+
+# SQLite database
+db.sqlite
+
+# Logs
+*.log
+npm-debug.log*
+
+# Environment variables
+.env
+
+# macOS system files
+.DS_Store
+
+# Editor config
+.vscode/
+.idea/
+
+# Optional: ignore build output if you add one
+dist/
+build/
