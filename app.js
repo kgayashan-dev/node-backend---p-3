@@ -9,7 +9,7 @@ const server = http.createServer((req, res) => {
 
   res.setHeader("Content-Type", "text/plain");
 
-  res.end("Test Application!");
+  res.end("Test Application!");// on browser
 });
 
 server.listen(port, hostname, () => {
