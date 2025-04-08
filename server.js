@@ -1,163 +1,103 @@
 var express = require("express");
+var app = express();
 var db = require("./database");
-const app = express(); // Declare app once
+var bodyParser = require("body-parser");
+const { request, response } = require("express");
+const cors = require("cors");
+app.use(cors({ origin: "*" }));
 
-// Use express.json() to parse incoming JSON bodies
-app.use(express.json());
+// Middleware
+app.use(bodyParser.urlencoded({ extended: false }));
+app.use(bodyParser.json());
 
 let HTTP_PORT = 8080;
 
+// Start server
 app.listen(HTTP_PORT, () => {
-  console.log(
-    "Server is running on http://localhost:%PORT%".replace("%PORT%", HTTP_PORT)
-  );
+  console.log(`Server running on port ${HTTP_PORT}`);
 });
 
-app.get("/", (req, res) => {
-  res.send("Hello from Express + SQLite!");
-});
+// Validation functions
+function isValidEmail(email) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
 
-// POST route to add a new product
-app.post("/api/products", (req, res) => {
+function isValidCardNumber(cardNumber) {
+  return /^\d{12}$/.test(cardNumber); // Luhn's algorithm would be more accurate here
+}
+
+// Register customer API
+app.post("/api/customers", async (req, res) => {
   try {
-    var errors = [];
-    if (!req.body) {
-      errors.push("An invalid input.");
-    }
-
     const {
-      productName,
-      description,
-      category,
-      brand,
-      expireDate,
-      manufactureDate,
-      batchNumber,
-      unitPrice,
-      quantity,
-      createdDate,
+      name,
+      address,
+      email,
+      dateOfBirth,
+      gender,
+      age,
+      cardHolderName,
+      cardNumber,
+      expiryDate,
+      cvv,
+      timeStamp,
     } = req.body;
 
-    var sql = `INSERT INTO products(
-      productName, description, category, brand, expiredDate, manufacturedDate, batchNumber, unitPrice, quantity, createdDate) 
-      VALUES(?,?,?,?,?,?,?,?,?,?)`;
+    // Validation
+    if (!isValidEmail(email)) {
+      return res.status(400).json({ error: "Invalid email format" });
+    }
 
-    var params = [
-      productName,
-      description,
-      category,
-      brand,
-      expireDate,
-      manufactureDate,
-      batchNumber,
-      unitPrice,
-      quantity,
-      createdDate,
+    if (!isValidCardNumber(cardNumber)) {
+      return res.status(400).json({ error: "Card number must be 12 digits" });
+    }
+
+    // Insert customer to the database
+    const sql = `
+      INSERT INTO customer (
+        name, address, email, dateOfBirth, gender, age,
+        cardHolderName, cardNumber, expiryDate, cvv, timeStamp
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `;
+    const params = [
+      name,
+      address,
+      email,
+      dateOfBirth,
+      gender,
+      age,
+      cardHolderName,
+      cardNumber,
+      expiryDate,
+      cvv,
+      timeStamp,
     ];
 
     db.run(sql, params, function (err) {
       if (err) {
-        return res.status(400).json({ error: err.message });
-      } else {
-        res.json({ message: "success", id: this.lastID });
+        return res.status(500).json({ error: "Failed to register customer" });
       }
+      res.status(201).json({
+        customerId: this.lastID,
+        message: `customer ${cardHolderName} has registered`,
+      });
     });
-  } catch (E) {
-    res.status(400).send(E);
+  } catch (e) {
+    res.status(400).json({ error: e.message });
   }
 });
 
-// GET route to fetch products
-app.get("/api/products", (req, res) => {
+// Get all customers API
+app.get("/api/customers", async (req, res) => {
   try {
-    var sql = "SELECT * FROM products";
-    var params = [];
-
-    db.all(sql, params, (err, rows) => {
+    const sql = "SELECT * FROM customer";
+    db.all(sql, [], (err, rows) => {
       if (err) {
-        return res.status(400).json({ error: err.message });
+        return res.status(500).json({ error: "Failed to fetch customers" });
       }
       res.status(200).json({ message: "success", data: rows });
     });
-  } catch (E) {
-    res.status(400).send(E);
-  }
-});
-
-// PUT route to update a product
-app.put("/api/products/", (req, res) => {
-  const {
-    id,
-    productName,
-    description,
-    category,
-    brand,
-    expireDate,
-    manufactureDate,
-    batchNumber,
-    unitPrice,
-    quantity,
-    createdDate,
-  } = req.body;
-
-  const sql = `
-    UPDATE products SET 
-      productName=?, 
-      description=?, 
-      category=?, 
-      brand=?, 
-      expiredDate=?, 
-      manufacturedDate=?, 
-      batchNumber=?, 
-      unitPrice=?, 
-      quantity=?, 
-      createdDate=?
-    WHERE id=?
-  `;
-
-  const params = [
-    productName,
-    description,
-    category,
-    brand,
-    expireDate,
-    manufactureDate,
-    batchNumber,
-    unitPrice,
-    quantity,
-    createdDate,
-    id,
-  ];
-
-  db.run(sql, params, function (err) {
-    if (err) {
-      return res.status(400).json({ error: err.message });
-    }
-
-    res.status(200).json({
-      message: `Product updated ${this.lastID}`,
-
-      updatedRows: this.changes,
-    });
-  });
-});
-
-app.delete("/api/products/delete/:id/", (req, res, next) => {
-  try {
-    db.run(
-      "DELETE FROM products WHERE id = ?",
-      req.params.id,
-      function (err, result) {
-        if (err) {
-          return res.status(400).json({ error: err.message });
-        }
-        res.status(200).json({
-          message: `Product is deleted`,
-          rows: this.changes,
-        });
-      }
-    );
-  } catch (E) {
-    res.status(400).send(E);
+  } catch (e) {
+    res.status(400).json({ error: "Unexpected error occurred" });
   }
 });
