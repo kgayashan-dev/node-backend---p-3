@@ -27,7 +27,7 @@ function isValidCardNumber(cardNumber) {
 }
 
 // Register customer API
-app.post("/api/customers", async (req, res) => {
+app.post("/api/customers", async (req, res) => { 
   try {
     const {
       name,
